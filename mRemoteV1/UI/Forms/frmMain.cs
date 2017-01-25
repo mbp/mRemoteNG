@@ -44,6 +44,8 @@ namespace mRemoteNG.UI.Forms
         private ConnectionInfo _selectedConnection;
         private SystemMenu _systemMenu;
         private ConnectionTreeWindow ConnectionTreeWindow { get; set; }
+        private readonly IConnectionInitiator _connectionInitiator = new ConnectionInitiator();
+
 
 
 
@@ -164,7 +166,7 @@ namespace mRemoteNG.UI.Forms
             ConnectionTreeWindow = Windows.TreeForm;
         }
 
-		private void ApplyLanguage()
+        private void ApplyLanguage()
 		{
 			mMenFile.Text = Language.strMenuFile;
 			mMenFileNew.Text = Language.strMenuNewConnectionFile;
@@ -384,7 +386,7 @@ namespace mRemoteNG.UI.Forms
 			}
 			catch (Exception ex)
 			{
-                Runtime.MessageCollector.AddMessage(MessageClass.ErrorMsg, string.Format(Language.strErrorAddExternalToolsToToolBarFailed, ex.Message), true);
+                Runtime.MessageCollector.AddExceptionStackTrace(Language.strErrorAddExternalToolsToToolBarFailed, ex);
 			}
 		}
 								
@@ -426,6 +428,7 @@ namespace mRemoteNG.UI.Forms
         private void mMenFile_DropDownOpening(object sender, EventArgs e)
         {
             var selectedNodeType = ConnectionTreeWindow.SelectedNode?.GetTreeNodeType();
+            // ReSharper disable once SwitchStatementMissingSomeCases
             switch (selectedNodeType)
             {
                 case TreeNodeType.Root:
@@ -494,19 +497,19 @@ namespace mRemoteNG.UI.Forms
 
         private void mMenFileNewConnection_Click(object sender, EventArgs e)
 		{
-            ConnectionTreeWindow.AddConnection();
+            ConnectionTreeWindow.ConnectionTree.AddConnection();
             Runtime.SaveConnectionsAsync();
 		}
 
         private void mMenFileNewFolder_Click(object sender, EventArgs e)
 		{
-            ConnectionTreeWindow.AddFolder();
+            ConnectionTreeWindow.ConnectionTree.AddFolder();
             Runtime.SaveConnectionsAsync();
 		}
 
         private void mMenFileNew_Click(object sender, EventArgs e)
 		{
-			var saveFileDialog = Tools.Controls.ConnectionsSaveAsDialog();
+			var saveFileDialog = ConnectionsSaveAsDialog();
 			if (saveFileDialog.ShowDialog() != DialogResult.OK)
 			{
 				return;
@@ -546,19 +549,19 @@ namespace mRemoteNG.UI.Forms
 
         private void mMenFileDelete_Click(object sender, EventArgs e)
 		{
-            ConnectionTreeWindow.DeleteSelectedNode();
+            ConnectionTreeWindow.ConnectionTree.DeleteSelectedNode();
             Runtime.SaveConnectionsAsync();
 		}
 
         private void mMenFileRename_Click(object sender, EventArgs e)
 		{
-            ConnectionTreeWindow.RenameSelectedNode();
+            ConnectionTreeWindow.ConnectionTree.RenameSelectedNode();
             Runtime.SaveConnectionsAsync();
 		}
 
         private void mMenFileDuplicate_Click(object sender, EventArgs e)
 		{
-            ConnectionTreeWindow.DuplicateSelectedNode();
+            ConnectionTreeWindow.ConnectionTree.DuplicateSelectedNode();
             Runtime.SaveConnectionsAsync();
 		}
 
@@ -584,7 +587,7 @@ namespace mRemoteNG.UI.Forms
                 foreach (var i in ICList)
                 {
                     i.Protocol.Close();
-                    ConnectionInitiator.OpenConnection(i.Info, ConnectionInfo.Force.DoNotJump);
+                    _connectionInitiator.OpenConnection(i.Info, ConnectionInfo.Force.DoNotJump);
                 }
 
                 // throw it on the garbage collector
@@ -623,6 +626,18 @@ namespace mRemoteNG.UI.Forms
 		{
             Shutdown.Quit();
 		}
+
+        public static SaveFileDialog ConnectionsSaveAsDialog()
+        {
+            return new SaveFileDialog
+            {
+                CheckPathExists = true,
+                InitialDirectory = ConnectionsFileInfo.DefaultConnectionsPath,
+                FileName = ConnectionsFileInfo.DefaultConnectionsFile,
+                OverwritePrompt = true,
+                Filter = Language.strFiltermRemoteXML + @"|*.xml|" + Language.strFilterAll + @"|*.*"
+            };
+        }
         #endregion
 
         #region View
@@ -733,7 +748,7 @@ namespace mRemoteNG.UI.Forms
                 MessageBoxIcon.Question);
             if (msgBoxResult == DialogResult.Yes)
 			{
-				Startup.Instance.SetDefaultLayout();
+				Default.SetDefaultLayout();
 			}
 		}
 
@@ -834,7 +849,7 @@ namespace mRemoteNG.UI.Forms
 			}
 			catch (Exception ex)
 			{
-                Runtime.MessageCollector.AddExceptionMessage("PopulateQuickConnectProtocolMenu() failed.", ex, MessageClass.ErrorMsg, true);
+                Runtime.MessageCollector.AddExceptionStackTrace("PopulateQuickConnectProtocolMenu() failed.", ex);
 			}
 		}
 
@@ -859,11 +874,11 @@ namespace mRemoteNG.UI.Forms
 					return;
 				}
 				cmbQuickConnect.Add(connectionInfo);
-                ConnectionInitiator.OpenConnection(connectionInfo, ConnectionInfo.Force.DoNotJump);
+                _connectionInitiator.OpenConnection(connectionInfo, ConnectionInfo.Force.DoNotJump);
 			}
 			catch (Exception ex)
 			{
-				Runtime.MessageCollector.AddExceptionMessage("btnQuickConnect_ButtonClick() failed.", ex, MessageClass.ErrorMsg, true);
+				Runtime.MessageCollector.AddExceptionStackTrace("btnQuickConnect_ButtonClick() failed.", ex);
 			}
 		}
 
@@ -935,13 +950,14 @@ namespace mRemoteNG.UI.Forms
             btnConnections.DropDownItems.AddRange(rootMenuItems);
 		}
 										
-		private static void ConnectionsMenuItem_MouseUp(object sender, MouseEventArgs e)
+		private void ConnectionsMenuItem_MouseUp(object sender, MouseEventArgs e)
 		{
 		    if (e.Button != MouseButtons.Left) return;
+		    if (((ToolStripMenuItem) sender).Tag is ContainerInfo) return;
 		    var tag = ((ToolStripMenuItem)sender).Tag as ConnectionInfo;
 		    if (tag != null)
 		    {
-		        ConnectionInitiator.OpenConnection(tag);
+		        _connectionInitiator.OpenConnection(tag);
 		    }
 		}
         #endregion
@@ -959,7 +975,7 @@ namespace mRemoteNG.UI.Forms
 			    if (!Settings.Default.MinimizeToTray) return;
 			    if (Runtime.NotificationAreaIcon == null)
 			    {
-			        Runtime.NotificationAreaIcon = new Tools.Controls.NotificationAreaIcon();
+			        Runtime.NotificationAreaIcon = new NotificationAreaIcon();
 			    }
 			    Hide();
 			}
@@ -1056,7 +1072,7 @@ namespace mRemoteNG.UI.Forms
 			}
 			catch (Exception ex)
 			{
-                Runtime.MessageCollector.AddExceptionMessage("frmMain WndProc failed", ex, MessageClass.ErrorMsg, true);
+                Runtime.MessageCollector.AddExceptionStackTrace("frmMain WndProc failed", ex);
             }
 									
 			base.WndProc(ref m);
@@ -1068,6 +1084,9 @@ namespace mRemoteNG.UI.Forms
 		    if (w?.TabController.SelectedTab == null) return;
 		    var tab = w.TabController.SelectedTab;
 		    var ifc = (InterfaceControl)tab.Tag;
+
+		    if (ifc == null) return;
+
 		    ifc.Protocol.Focus();
 		    ((ConnectionWindow) ifc.FindForm())?.RefreshInterfaceController();
 		}
@@ -1201,6 +1220,24 @@ namespace mRemoteNG.UI.Forms
             _systemMenu.InsertMenuItem(_systemMenu.SystemMenuHandle, 0, SystemMenu.Flags.MF_POPUP | SystemMenu.Flags.MF_BYPOSITION, popMen, Language.strSendTo);
             _systemMenu.InsertMenuItem(_systemMenu.SystemMenuHandle, 1, SystemMenu.Flags.MF_BYPOSITION | SystemMenu.Flags.MF_SEPARATOR, IntPtr.Zero, null);
 		}
+
+        public void SetDefaultLayout()
+        {
+            Default.pnlDock.Visible = false;
+
+            Default.pnlDock.DockLeftPortion = Default.pnlDock.Width * 0.2;
+            Default.pnlDock.DockRightPortion = Default.pnlDock.Width * 0.2;
+            Default.pnlDock.DockTopPortion = Default.pnlDock.Height * 0.25;
+            Default.pnlDock.DockBottomPortion = Default.pnlDock.Height * 0.25;
+
+            Windows.TreePanel.Show(Default.pnlDock, DockState.DockLeft);
+            Windows.ConfigPanel.Show(Default.pnlDock);
+            Windows.ConfigPanel.DockTo(Windows.TreePanel.Pane, DockStyle.Bottom, -1);
+
+            Windows.ScreenshotForm.Hide();
+
+            Default.pnlDock.Visible = true;
+        }
         #endregion
 
         #region Events
