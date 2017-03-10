@@ -2398,5 +2398,17 @@ namespace mRemoteNG {
                 this["InhDefaultRDPAlertIdleTimeout"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("eu-west-1,us-west-2")]
+        public string AwsRegions {
+            get {
+                return ((string)(this["AwsRegions"]));
+            }
+            set {
+                this["AwsRegions"] = value;
+            }
+        }
     }
 }

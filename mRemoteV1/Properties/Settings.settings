@@ -596,5 +596,8 @@
     <Setting Name="InhDefaultRDPAlertIdleTimeout" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">False</Value>
     </Setting>
+    <Setting Name="AwsRegions" Type="System.String" Scope="User">
+      <Value Profile="(Default)">eu-west-1,us-west-2</Value>
+    </Setting>
   </Settings>
 </SettingsFile>
