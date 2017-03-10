@@ -103,6 +103,7 @@ namespace mRemoteNG.UI.Forms
             this.cMenExtAppsToolbar = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.cMenToolbarShowText = new System.Windows.Forms.ToolStripMenuItem();
             this.tmrAutoSave = new System.Windows.Forms.Timer(this.components);
+            this.importFromAWSToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.msMain.SuspendLayout();
             this.tsContainer.ContentPanel.SuspendLayout();
             this.tsContainer.TopToolStripPanel.SuspendLayout();
@@ -279,7 +280,8 @@ namespace mRemoteNG.UI.Forms
             this.mMenFileImport.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.mMenFileImportFromFile,
             this.mMenFileImportFromActiveDirectory,
-            this.mMenFileImportFromPortScan});
+            this.mMenFileImportFromPortScan,
+            this.importFromAWSToolStripMenuItem});
             this.mMenFileImport.Name = "mMenFileImport";
             this.mMenFileImport.Size = new System.Drawing.Size(281, 22);
             this.mMenFileImport.Text = "&Import";
@@ -768,6 +770,14 @@ namespace mRemoteNG.UI.Forms
             this.tmrAutoSave.Interval = 10000;
             this.tmrAutoSave.Tick += new System.EventHandler(this.tmrAutoSave_Tick);
             // 
+            // importFromAWSToolStripMenuItem
+            // 
+            this.importFromAWSToolStripMenuItem.Name = "importFromAWSToolStripMenuItem";
+            this.importFromAWSToolStripMenuItem.Size = new System.Drawing.Size(235, 22);
+            this.importFromAWSToolStripMenuItem.Text = "Import from AWS";
+            this.importFromAWSToolStripMenuItem.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.A)));
+            this.importFromAWSToolStripMenuItem.Click += new System.EventHandler(this.importFromAWSToolStripMenuItem_Click);
+            // 
             // frmMain
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -873,5 +883,6 @@ namespace mRemoteNG.UI.Forms
 		internal System.Windows.Forms.ToolStripMenuItem mMenFileImportFromPortScan;
 		internal System.Windows.Forms.ToolStripMenuItem mMenFileImport;
         private System.ComponentModel.IContainer components;
+        private System.Windows.Forms.ToolStripMenuItem importFromAWSToolStripMenuItem;
     }
 }
