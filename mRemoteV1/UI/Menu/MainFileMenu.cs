@@ -1,7 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Windows.Forms;
+using Amazon;
+using Amazon.EC2;
+using Amazon.Runtime;
+using Amazon.Util;
 using mRemoteNG.App;
 using mRemoteNG.App.Info;
 using mRemoteNG.Connection;
@@ -34,6 +39,7 @@ namespace mRemoteNG.UI.Menu
         private ToolStripMenuItem _mMenFileImportFromFile;
         private ToolStripMenuItem _mMenFileImportFromActiveDirectory;
         private ToolStripMenuItem _mMenFileImportFromPortScan;
+        private ToolStripMenuItem _mMenFileImportFromAWS;
         private ToolStripMenuItem _mMenFileImport;
         private ToolStripMenuItem _mMenReconnectAll;
 
@@ -65,6 +71,7 @@ namespace mRemoteNG.UI.Menu
             _mMenFileImportFromFile = new ToolStripMenuItem();
             _mMenFileImportFromActiveDirectory = new ToolStripMenuItem();
             _mMenFileImportFromPortScan = new ToolStripMenuItem();
+            _mMenFileImportFromAWS = new ToolStripMenuItem();
             _mMenFileExport = new ToolStripMenuItem();
             _mMenFileSep5 = new ToolStripSeparator();
             _mMenFileExit = new ToolStripMenuItem();
@@ -209,7 +216,8 @@ namespace mRemoteNG.UI.Menu
             _mMenFileImport.DropDownItems.AddRange(new ToolStripItem[] {
             _mMenFileImportFromFile,
             _mMenFileImportFromActiveDirectory,
-            _mMenFileImportFromPortScan});
+            _mMenFileImportFromPortScan,
+            _mMenFileImportFromAWS});
             _mMenFileImport.Name = "mMenFileImport";
             _mMenFileImport.Size = new System.Drawing.Size(281, 22);
             _mMenFileImport.Text = Language.strImportMenuItem;
@@ -234,6 +242,14 @@ namespace mRemoteNG.UI.Menu
             _mMenFileImportFromPortScan.Size = new System.Drawing.Size(235, 22);
             _mMenFileImportFromPortScan.Text = Language.strImportPortScan;
             _mMenFileImportFromPortScan.Click += mMenFileImportFromPortScan_Click;
+            // 
+            // mMenFileImportFromAWS
+            // 
+            _mMenFileImportFromAWS.Name = "mMenFileImportFromAWS";
+            _mMenFileImportFromAWS.Size = new System.Drawing.Size(235, 22);
+            _mMenFileImportFromAWS.Text = "Import from AWS";
+            _mMenFileImportFromAWS.ShortcutKeys = (Keys.Control | Keys.A);
+            _mMenFileImportFromAWS.Click += mMenFileImportFromAWS_Click;
             // 
             // mMenFileExport
             // 
@@ -465,6 +481,96 @@ namespace mRemoteNG.UI.Menu
         private void mMenFileImportFromPortScan_Click(object sender, EventArgs e)
         {
             Windows.Show(WindowType.PortScan);
+        }
+
+        private void mMenFileImportFromAWS_Click(object sender, EventArgs e)
+        {
+            var rootNode = Runtime.ConnectionsService.ConnectionTreeModel.RootNodes.First();
+            var awsNodes = rootNode.Children.Where(x => x.Description == "awsGeneratedNode").ToArray();
+            rootNode.RemoveChildRange(awsNodes);
+
+            var connectionInfos = GetEc2ConnectionInfos();
+            rootNode.AddChildRange(connectionInfos);
+            Runtime.ConnectionsService.SaveConnectionsAsync();
+        }
+
+        private IEnumerable<ConnectionInfo> GetEc2ConnectionInfos()
+        {
+            foreach (var profile in ProfileManager.ListProfiles())
+            {
+                var credentials = ProfileManager.GetAWSCredentials(profile.Name);
+
+                foreach (var endpointName in Settings.Default.AwsRegions.Split(','))
+                {
+                    var endpoint = RegionEndpoint.GetBySystemName(endpointName);
+                    var regionContainer = new ContainerInfo
+                    {
+                        Name = $"{profile.Name}: { endpoint.DisplayName }",
+                        Description = "awsGeneratedNode",
+                        IsExpanded = true,
+                    };
+                    try
+                    {
+                        GetInstances(credentials, endpoint, regionContainer);
+                    }
+                    catch (AmazonEC2Exception e)
+                    {
+                        // If account does not have permissions, ignore it.
+                        if (e.StatusCode != HttpStatusCode.Unauthorized && e.StatusCode != HttpStatusCode.Forbidden)
+                        {
+                            throw;
+                        }
+                        regionContainer.Name = "no permissions: " + regionContainer.Name;
+                    }
+                    yield return regionContainer;
+                }
+            }
+        }
+
+        private void GetInstances(AWSCredentials credentials, RegionEndpoint endpoint, ContainerInfo regionContainer)
+        {
+            using (var ec2Client = new AmazonEC2Client(credentials, endpoint))
+            {
+                var describeInstancesResponse = ec2Client.DescribeInstances();
+                var instances = describeInstancesResponse.Reservations.SelectMany(x => x.Instances)
+                    .Where(x => !string.IsNullOrEmpty(x.PublicDnsName) || !string.IsNullOrEmpty(x.PublicIpAddress))
+                    .Select(x => new
+                    {
+                        Instance = x,
+                        Environment = x.Tags.FirstOrDefault(tag => tag.Key == "Environment")?.Value,
+                        Function = x.Tags.FirstOrDefault(tag => tag.Key == "Function")?.Value,
+                        Name = x.Tags.FirstOrDefault(tag => tag.Key == "Name")?.Value,
+                    });
+
+                foreach (var instanceGroupByEnvironment in instances.GroupBy(x => x.Environment))
+                {
+                    var environmentContainer = new ContainerInfo
+                    {
+                        Name = string.IsNullOrEmpty(instanceGroupByEnvironment.Key) ? "(no environment)" : instanceGroupByEnvironment.Key,
+                        IsExpanded = true,
+                    };
+                    regionContainer.AddChild(environmentContainer);
+
+                    foreach (var instanceGroupByFunction in instanceGroupByEnvironment.GroupBy(x => x.Function))
+                    {
+                        var functionContainer = new ContainerInfo
+                        {
+                            Name = string.IsNullOrEmpty(instanceGroupByFunction.Key) ? "(no function)" : instanceGroupByFunction.Key,
+                        };
+                        environmentContainer.AddChild(functionContainer);
+
+                        foreach (var instance in instanceGroupByFunction)
+                        {
+                            string functionOrName = instance.Function ?? instance.Name;
+                            var connectionInfo = new ConnectionInfo();
+                            connectionInfo.Hostname = !string.IsNullOrEmpty(instance.Instance.PublicIpAddress) ? instance.Instance.PublicIpAddress : instance.Instance.PublicDnsName;
+                            connectionInfo.Name = $"{functionOrName} {instance.Instance.InstanceId}";
+                            connectionInfo.Description = $"{instance.Instance.State.Name}";
+                            functionContainer.AddChild(connectionInfo);
+                        }
+                    }
+                }
+            }
         }
 
         private void mMenFileExport_Click(object sender, EventArgs e)
