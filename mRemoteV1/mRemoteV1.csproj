@@ -491,6 +491,12 @@
     </Compile>
     <Compile Include="UI\Forms\FullscreenHandler.cs" />
     <Compile Include="UI\Forms\Input\input.cs" />
+    <Compile Include="UI\Forms\OptionsPages\AWSPage.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UI\Forms\OptionsPages\AWSPage.Designer.cs">
+      <DependentUpon>AWSPage.cs</DependentUpon>
+    </Compile>
     <Compile Include="UI\Forms\OptionsPages\AdvancedPage.Designer.cs">
       <DependentUpon>AdvancedPage.cs</DependentUpon>
     </Compile>
@@ -793,6 +799,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="UI\Forms\OptionsPages\NotificationsPage.resx">
       <DependentUpon>NotificationsPage.cs</DependentUpon>
+    </EmbeddedResource>
+        <EmbeddedResource Include="UI\Forms\OptionsPages\AWSPage.resx">
+      <DependentUpon>AWSPage.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="UI\Forms\OptionsPages\OptionsPage.resx">
       <DependentUpon>OptionsPage.cs</DependentUpon>
