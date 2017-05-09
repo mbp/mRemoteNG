@@ -1342,7 +1342,7 @@ namespace mRemoteNG.UI.Forms
                     var endpoint = RegionEndpoint.GetBySystemName(endpointName);
                     var regionContainer = new ContainerInfo
                     {
-                        Name = $"{profile.Name}: Region { endpoint.DisplayName }",
+                        Name = $"{profile.Name}: { endpoint.DisplayName }",
                         Description = "awsGeneratedNode",
                         IsExpanded = true,
                     };
