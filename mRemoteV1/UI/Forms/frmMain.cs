@@ -1353,7 +1353,7 @@ namespace mRemoteNG.UI.Forms
                     catch (AmazonEC2Exception e)
                     {
                         // If account does not have permissions, ignore it.
-                        if (e.StatusCode != HttpStatusCode.Unauthorized)
+                        if (e.StatusCode != HttpStatusCode.Unauthorized && e.StatusCode != HttpStatusCode.Forbidden)
                         {
                             throw;
                         }
