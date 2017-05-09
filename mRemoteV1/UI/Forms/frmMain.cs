@@ -1357,6 +1357,7 @@ namespace mRemoteNG.UI.Forms
                         {
                             throw;
                         }
+                        regionContainer.Name = "no permissions: " + regionContainer.Name;
                     }
                     yield return regionContainer;
                 }
