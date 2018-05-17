@@ -488,31 +488,35 @@ namespace mRemoteNG.UI.Menu
         {
             var rootNode = Runtime.ConnectionsService.ConnectionTreeModel.RootNodes.First();
             var awsNodes = rootNode.Children.Where(x => x.Description == "awsGeneratedNode").ToArray();
-            rootNode.RemoveChildRange(awsNodes);
 
+            var addedRegionContainers = new List<string>();
             foreach (var profile in ProfileManager.ListProfiles())
             {
                 var credentials = ProfileManager.GetAWSCredentials(profile.Name);
 
                 foreach (var endpointName in Settings.Default.AwsRegions.Split(','))
                 {
-                    var connectionInfos = await GetConnectionInfosForProfileAndRegion(profile, credentials, endpointName);
-                    rootNode.AddChildRange(connectionInfos);
-                    Runtime.ConnectionsService.SaveConnectionsAsync();
+                    var endpoint = RegionEndpoint.GetBySystemName(endpointName);
+                    string name = $"{profile.Name}: { endpoint.DisplayName }";
+                    addedRegionContainers.Add(name);
+                    var regionContainer = awsNodes.OfType<ContainerInfo>().FirstOrDefault(x => x.Name == name) ?? new ContainerInfo
+                    {
+                        Name = name,
+                        Description = "awsGeneratedNode",
+                    };
+                    await GetConnectionInfosForProfileAndRegion(profile, credentials, endpoint, regionContainer);
+                    if (!awsNodes.OfType<ContainerInfo>().Any(x => x.Name == name))
+                    {
+                        rootNode.AddChild(regionContainer);
+                    }
                 }
             }
+            rootNode.RemoveChildRange(awsNodes.Where(x => !addedRegionContainers.Contains(x.Name)).ToArray());
+            Runtime.ConnectionsService.SaveConnectionsAsync();
         }
 
-        private async Task<IEnumerable<ConnectionInfo>> GetConnectionInfosForProfileAndRegion(ProfileSettingsBase profile, AWSCredentials credentials, string endpointName)
+        private async Task GetConnectionInfosForProfileAndRegion(ProfileSettingsBase profile, AWSCredentials credentials, RegionEndpoint endpoint, ContainerInfo regionContainer)
         {
-            var connectionInfos = new List<ConnectionInfo>();
-            var endpoint = RegionEndpoint.GetBySystemName(endpointName);
-            var regionContainer = new ContainerInfo
-            {
-                Name = $"{profile.Name}: { endpoint.DisplayName }",
-                Description = "awsGeneratedNode",
-                IsExpanded = true,
-            };
             try
             {
                 await GetInstances(credentials, endpoint, regionContainer);
@@ -526,8 +530,6 @@ namespace mRemoteNG.UI.Menu
                 }
                 regionContainer.Name = "no permissions: " + regionContainer.Name;
             }
-            connectionInfos.Add(regionContainer);
-            return connectionInfos;
         }
 
         private async Task GetInstances(AWSCredentials credentials, RegionEndpoint endpoint, ContainerInfo regionContainer)
@@ -545,36 +547,55 @@ namespace mRemoteNG.UI.Menu
                         Name = x.Tags.FirstOrDefault(tag => tag.Key == "Name")?.Value,
                     });
 
+                var addedEnvironmentNodes = new List<string>();
                 foreach (var instanceGroupByEnvironment in instances.GroupBy(x => x.Environment))
                 {
-                    var environmentContainer = new ContainerInfo
-                    {
-                        Name = string.IsNullOrEmpty(instanceGroupByEnvironment.Key) ? "(no environment)" : instanceGroupByEnvironment.Key,
-                        IsExpanded = true,
-                    };
-                    regionContainer.AddChild(environmentContainer);
+                    string environmentContainerNameName = string.IsNullOrEmpty(instanceGroupByEnvironment.Key) ? "(no environment)" : instanceGroupByEnvironment.Key;
+                    addedEnvironmentNodes.Add(environmentContainerNameName);
+                    var environmentContainer = regionContainer.Children.OfType<ContainerInfo>().FirstOrDefault(x => x.Name == environmentContainerNameName) ?? new ContainerInfo { Name = environmentContainerNameName };
 
+                    if (!regionContainer.Children.OfType<ContainerInfo>().Any(x => x.Name == environmentContainerNameName))
+                    {
+                        regionContainer.AddChild(environmentContainer);
+                    }
+
+                    var addedFunctionNodes = new List<string>();
                     foreach (var instanceGroupByFunction in instanceGroupByEnvironment.GroupBy(x => x.Function))
                     {
-                        var functionContainer = new ContainerInfo
-                        {
-                            Name = string.IsNullOrEmpty(instanceGroupByFunction.Key) ? "(no function)" : instanceGroupByFunction.Key,
-                        };
-                        environmentContainer.AddChild(functionContainer);
+                        string functionContainerName = string.IsNullOrEmpty(instanceGroupByFunction.Key) ? "(no function)" : instanceGroupByFunction.Key;
+                        addedFunctionNodes.Add(functionContainerName);
+                        var functionContainer = environmentContainer.Children.OfType<ContainerInfo>().FirstOrDefault(x => x.Name == functionContainerName) ?? new ContainerInfo { Name = functionContainerName };
 
+                        if (!environmentContainer.Children.OfType<ContainerInfo>().Any(x => x.Name == functionContainerName))
+                        {
+                            environmentContainer.AddChild(functionContainer);
+                        }
+
+                        var addedInstanceNodes = new List<string>();
                         foreach (var instance in instanceGroupByFunction)
                         {
                             string functionOrName = instance.Function ?? instance.Name;
+                            string connectionInfoName = $"{functionOrName} {instance.Instance.InstanceId}";
+                            addedInstanceNodes.Add(connectionInfoName);
+                            if (functionContainer.Children.Any(x => x.Name == connectionInfoName))
+                            {
+                                continue;
+                            }
                             var connectionInfo = new ConnectionInfo();
                             connectionInfo.Hostname = !string.IsNullOrEmpty(instance.Instance.PublicIpAddress) ? instance.Instance.PublicIpAddress : !string.IsNullOrEmpty(instance.Instance.PublicDnsName) ? instance.Instance.PublicDnsName : instance.Instance.PrivateIpAddress;
-                            connectionInfo.Name = $"{functionOrName} {instance.Instance.InstanceId}";
+                            connectionInfo.Name = connectionInfoName;
                             connectionInfo.Description = $"{instance.Instance.State.Name}";
                             connectionInfo.Protocol = instance.Instance.Platform == PlatformValues.Windows ? Connection.Protocol.ProtocolType.RDP : Connection.Protocol.ProtocolType.SSH2;
                             connectionInfo.Port = instance.Instance.Platform == PlatformValues.Windows ? 3389 : 22;
                             functionContainer.AddChild(connectionInfo);
                         }
+                        functionContainer.RemoveChildRange(functionContainer.Children.Where(x => !addedInstanceNodes.Contains(x.Name)).ToArray());
                     }
+
+                    environmentContainer.RemoveChildRange(environmentContainer.Children.Where(x => !addedFunctionNodes.Contains(x.Name)).ToArray());
                 }
+
+                regionContainer.RemoveChildRange(regionContainer.Children.Where(x => !addedEnvironmentNodes.Contains(x.Name)).ToArray());
             }
         }
 
