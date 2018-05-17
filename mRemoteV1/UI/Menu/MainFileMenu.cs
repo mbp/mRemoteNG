@@ -490,43 +490,43 @@ namespace mRemoteNG.UI.Menu
             var awsNodes = rootNode.Children.Where(x => x.Description == "awsGeneratedNode").ToArray();
             rootNode.RemoveChildRange(awsNodes);
 
-            var connectionInfos = await GetEc2ConnectionInfos();
-            rootNode.AddChildRange(connectionInfos);
-            Runtime.ConnectionsService.SaveConnectionsAsync();
-        }
-
-        private async Task<IEnumerable<ConnectionInfo>> GetEc2ConnectionInfos()
-        {
-            var connectionInfos = new List<ConnectionInfo>();
             foreach (var profile in ProfileManager.ListProfiles())
             {
                 var credentials = ProfileManager.GetAWSCredentials(profile.Name);
 
                 foreach (var endpointName in Settings.Default.AwsRegions.Split(','))
                 {
-                    var endpoint = RegionEndpoint.GetBySystemName(endpointName);
-                    var regionContainer = new ContainerInfo
-                    {
-                        Name = $"{profile.Name}: { endpoint.DisplayName }",
-                        Description = "awsGeneratedNode",
-                        IsExpanded = true,
-                    };
-                    try
-                    {
-                        await GetInstances(credentials, endpoint, regionContainer);
-                    }
-                    catch (AmazonEC2Exception e)
-                    {
-                        // If account does not have permissions, ignore it.
-                        if (e.StatusCode != HttpStatusCode.Unauthorized && e.StatusCode != HttpStatusCode.Forbidden)
-                        {
-                            throw;
-                        }
-                        regionContainer.Name = "no permissions: " + regionContainer.Name;
-                    }
-                    connectionInfos.Add(regionContainer);
+                    var connectionInfos = await GetConnectionInfosForProfileAndRegion(profile, credentials, endpointName);
+                    rootNode.AddChildRange(connectionInfos);
+                    Runtime.ConnectionsService.SaveConnectionsAsync();
                 }
             }
+        }
+
+        private async Task<IEnumerable<ConnectionInfo>> GetConnectionInfosForProfileAndRegion(ProfileSettingsBase profile, AWSCredentials credentials, string endpointName)
+        {
+            var connectionInfos = new List<ConnectionInfo>();
+            var endpoint = RegionEndpoint.GetBySystemName(endpointName);
+            var regionContainer = new ContainerInfo
+            {
+                Name = $"{profile.Name}: { endpoint.DisplayName }",
+                Description = "awsGeneratedNode",
+                IsExpanded = true,
+            };
+            try
+            {
+                await GetInstances(credentials, endpoint, regionContainer);
+            }
+            catch (AmazonEC2Exception e)
+            {
+                // If account does not have permissions, ignore it.
+                if (e.StatusCode != HttpStatusCode.Unauthorized && e.StatusCode != HttpStatusCode.Forbidden)
+                {
+                    throw;
+                }
+                regionContainer.Name = "no permissions: " + regionContainer.Name;
+            }
+            connectionInfos.Add(regionContainer);
             return connectionInfos;
         }
 
