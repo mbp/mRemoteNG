@@ -593,12 +593,15 @@ namespace mRemoteNG.UI.Menu
                             functionContainer.AddChild(connectionInfo);
                         }
                         functionContainer.RemoveChildRange(functionContainer.Children.Where(x => !addedInstanceNodes.Contains(x.Name)).ToArray());
+                        functionContainer.Sort();
                     }
 
                     environmentContainer.RemoveChildRange(environmentContainer.Children.Where(x => !addedFunctionNodes.Contains(x.Name)).ToArray());
+                    environmentContainer.Sort();
                 }
 
                 regionContainer.RemoveChildRange(regionContainer.Children.Where(x => !addedEnvironmentNodes.Contains(x.Name)).ToArray());
+                regionContainer.Sort();
             }
         }
 
