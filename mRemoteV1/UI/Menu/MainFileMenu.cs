@@ -575,7 +575,8 @@ namespace mRemoteNG.UI.Menu
                         foreach (var instance in instanceGroupByFunction)
                         {
                             string functionOrName = instance.Function ?? instance.Name;
-                            string connectionInfoName = $"{functionOrName} {instance.Instance.InstanceId}";
+                            var stackName = instance.Instance.Tags.FirstOrDefault(x => x.Key == "aws:cloudformation:stack-name")?.Value;
+                            string connectionInfoName = $"{instance.Instance.InstanceId} {stackName}";
                             addedInstanceNodes.Add(connectionInfoName);
                             if (functionContainer.Children.Any(x => x.Name == connectionInfoName))
                             {
