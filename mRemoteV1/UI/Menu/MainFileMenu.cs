@@ -549,7 +549,7 @@ namespace mRemoteNG.UI.Menu
                     });
 
                 var addedEnvironmentNodes = new List<string>();
-                foreach (var instanceGroupByEnvironment in instances.GroupBy(x => x.Environment))
+                foreach (var instanceGroupByEnvironment in instances.GroupBy(x => x.Environment).OrderBy(x => x.Key))
                 {
                     string environmentContainerNameName = string.IsNullOrEmpty(instanceGroupByEnvironment.Key) ? "(no environment)" : instanceGroupByEnvironment.Key;
                     addedEnvironmentNodes.Add(environmentContainerNameName);
@@ -561,7 +561,7 @@ namespace mRemoteNG.UI.Menu
                     }
 
                     var addedFunctionNodes = new List<string>();
-                    foreach (var instanceGroupByFunction in instanceGroupByEnvironment.GroupBy(x => x.InstanceGroupName))
+                    foreach (var instanceGroupByFunction in instanceGroupByEnvironment.GroupBy(x => x.InstanceGroupName).OrderBy(x => x.Key))
                     {
                         string functionContainerName = string.IsNullOrEmpty(instanceGroupByFunction.Key) ? "(no function)" : instanceGroupByFunction.Key;
                         addedFunctionNodes.Add(functionContainerName);
@@ -573,7 +573,7 @@ namespace mRemoteNG.UI.Menu
                         }
 
                         var addedInstanceNodes = new List<string>();
-                        foreach (var instance in instanceGroupByFunction)
+                        foreach (var instance in instanceGroupByFunction.OrderBy(x => x.Instance.InstanceId))
                         {
                             var notRunningState = instance.Instance.State.Name != InstanceStateName.Running ? $"[{instance.Instance.State.Name}] ".ToUpper() : "";
                             string connectionInfoName = $"{instance.Function} {notRunningState}{instance.Instance.InstanceId}";
@@ -592,15 +592,12 @@ namespace mRemoteNG.UI.Menu
                             functionContainer.AddChild(connectionInfo);
                         }
                         functionContainer.RemoveChildRange(functionContainer.Children.Where(x => !addedInstanceNodes.Contains(x.Name)).ToArray());
-                        functionContainer.Sort();
                     }
 
                     environmentContainer.RemoveChildRange(environmentContainer.Children.Where(x => !addedFunctionNodes.Contains(x.Name)).ToArray());
-                    environmentContainer.Sort();
                 }
 
                 regionContainer.RemoveChildRange(regionContainer.Children.Where(x => !addedEnvironmentNodes.Contains(x.Name)).ToArray());
-                regionContainer.Sort();
             }
         }
 
