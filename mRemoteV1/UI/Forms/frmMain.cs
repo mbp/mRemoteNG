@@ -248,8 +248,9 @@ namespace mRemoteNG.UI.Forms
 
         private void frmMain_Shown(object sender, EventArgs e)
         {
-            PromptForUpdatesPreference();
-            CheckForUpdates();
+            // Does not apply for the fork
+            //PromptForUpdatesPreference();
+            //CheckForUpdates();
         }
 
         private void PromptForUpdatesPreference()
