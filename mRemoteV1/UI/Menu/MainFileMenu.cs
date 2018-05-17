@@ -588,6 +588,7 @@ namespace mRemoteNG.UI.Menu
                             connectionInfo.Description = $"{instance.Instance.State.Name}";
                             connectionInfo.Protocol = instance.Instance.Platform == PlatformValues.Windows ? Connection.Protocol.ProtocolType.RDP : Connection.Protocol.ProtocolType.SSH2;
                             connectionInfo.Port = instance.Instance.Platform == PlatformValues.Windows ? 3389 : 22;
+                            connectionInfo.Icon = instance.Instance.Platform == PlatformValues.Windows ? "Windows" : "Linux";
                             functionContainer.AddChild(connectionInfo);
                         }
                         functionContainer.RemoveChildRange(functionContainer.Children.Where(x => !addedInstanceNodes.Contains(x.Name)).ToArray());
