@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using Amazon;
 using Amazon.EC2;
@@ -483,19 +484,20 @@ namespace mRemoteNG.UI.Menu
             Windows.Show(WindowType.PortScan);
         }
 
-        private void mMenFileImportFromAWS_Click(object sender, EventArgs e)
+        private async void mMenFileImportFromAWS_Click(object sender, EventArgs e)
         {
             var rootNode = Runtime.ConnectionsService.ConnectionTreeModel.RootNodes.First();
             var awsNodes = rootNode.Children.Where(x => x.Description == "awsGeneratedNode").ToArray();
             rootNode.RemoveChildRange(awsNodes);
 
-            var connectionInfos = GetEc2ConnectionInfos();
+            var connectionInfos = await GetEc2ConnectionInfos();
             rootNode.AddChildRange(connectionInfos);
             Runtime.ConnectionsService.SaveConnectionsAsync();
         }
 
-        private IEnumerable<ConnectionInfo> GetEc2ConnectionInfos()
+        private async Task<IEnumerable<ConnectionInfo>> GetEc2ConnectionInfos()
         {
+            var connectionInfos = new List<ConnectionInfo>();
             foreach (var profile in ProfileManager.ListProfiles())
             {
                 var credentials = ProfileManager.GetAWSCredentials(profile.Name);
@@ -511,7 +513,7 @@ namespace mRemoteNG.UI.Menu
                     };
                     try
                     {
-                        GetInstances(credentials, endpoint, regionContainer);
+                        await GetInstances(credentials, endpoint, regionContainer);
                     }
                     catch (AmazonEC2Exception e)
                     {
@@ -522,16 +524,17 @@ namespace mRemoteNG.UI.Menu
                         }
                         regionContainer.Name = "no permissions: " + regionContainer.Name;
                     }
-                    yield return regionContainer;
+                    connectionInfos.Add(regionContainer);
                 }
             }
+            return connectionInfos;
         }
 
-        private void GetInstances(AWSCredentials credentials, RegionEndpoint endpoint, ContainerInfo regionContainer)
+        private async Task GetInstances(AWSCredentials credentials, RegionEndpoint endpoint, ContainerInfo regionContainer)
         {
             using (var ec2Client = new AmazonEC2Client(credentials, endpoint))
             {
-                var describeInstancesResponse = ec2Client.DescribeInstances();
+                var describeInstancesResponse = await ec2Client.DescribeInstancesAsync();
                 var instances = describeInstancesResponse.Reservations.SelectMany(x => x.Instances)
                     .Where(x => !string.IsNullOrEmpty(x.PublicDnsName) || !string.IsNullOrEmpty(x.PublicIpAddress))
                     .Select(x => new
