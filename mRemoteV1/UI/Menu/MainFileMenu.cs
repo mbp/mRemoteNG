@@ -569,6 +569,8 @@ namespace mRemoteNG.UI.Menu
                             connectionInfo.Hostname = !string.IsNullOrEmpty(instance.Instance.PublicIpAddress) ? instance.Instance.PublicIpAddress : !string.IsNullOrEmpty(instance.Instance.PublicDnsName) ? instance.Instance.PublicDnsName : instance.Instance.PrivateIpAddress;
                             connectionInfo.Name = $"{functionOrName} {instance.Instance.InstanceId}";
                             connectionInfo.Description = $"{instance.Instance.State.Name}";
+                            connectionInfo.Protocol = instance.Instance.Platform == PlatformValues.Windows ? Connection.Protocol.ProtocolType.RDP : Connection.Protocol.ProtocolType.SSH2;
+                            connectionInfo.Port = instance.Instance.Platform == PlatformValues.Windows ? 3389 : 22;
                             functionContainer.AddChild(connectionInfo);
                         }
                     }
