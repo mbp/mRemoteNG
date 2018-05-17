@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using Amazon;
 using Amazon.EC2;
+using Amazon.EC2.Model;
 using Amazon.Runtime;
 using Amazon.Util;
 using mRemoteNG.App;
@@ -543,8 +544,8 @@ namespace mRemoteNG.UI.Menu
                     {
                         Instance = x,
                         Environment = x.Tags.FirstOrDefault(tag => tag.Key == "Environment")?.Value,
-                        Function = x.Tags.FirstOrDefault(tag => tag.Key == "Function")?.Value,
-                        Name = x.Tags.FirstOrDefault(tag => tag.Key == "Name")?.Value,
+                        Function = x.Tags.FirstOrDefault(y => y.Key == "Function")?.Value ?? x.Tags.FirstOrDefault(y => y.Key == "Name")?.Value,
+                        InstanceGroupName = GetInstanceGroupName(x)
                     });
 
                 var addedEnvironmentNodes = new List<string>();
@@ -560,7 +561,7 @@ namespace mRemoteNG.UI.Menu
                     }
 
                     var addedFunctionNodes = new List<string>();
-                    foreach (var instanceGroupByFunction in instanceGroupByEnvironment.GroupBy(x => x.Function))
+                    foreach (var instanceGroupByFunction in instanceGroupByEnvironment.GroupBy(x => x.InstanceGroupName))
                     {
                         string functionContainerName = string.IsNullOrEmpty(instanceGroupByFunction.Key) ? "(no function)" : instanceGroupByFunction.Key;
                         addedFunctionNodes.Add(functionContainerName);
@@ -574,10 +575,8 @@ namespace mRemoteNG.UI.Menu
                         var addedInstanceNodes = new List<string>();
                         foreach (var instance in instanceGroupByFunction)
                         {
-                            string functionOrName = instance.Function ?? instance.Name;
-                            var stackName = instance.Instance.Tags.FirstOrDefault(x => x.Key == "aws:cloudformation:stack-name")?.Value;
                             var notRunningState = instance.Instance.State.Name != InstanceStateName.Running ? $"[{instance.Instance.State.Name}] ".ToUpper() : "";
-                            string connectionInfoName = $"{notRunningState}{instance.Instance.InstanceId} {stackName}";
+                            string connectionInfoName = $"{instance.Function} {notRunningState}{instance.Instance.InstanceId}";
                             addedInstanceNodes.Add(connectionInfoName);
                             if (functionContainer.Children.Any(x => x.Name == connectionInfoName))
                             {
@@ -603,6 +602,17 @@ namespace mRemoteNG.UI.Menu
                 regionContainer.RemoveChildRange(regionContainer.Children.Where(x => !addedEnvironmentNodes.Contains(x.Name)).ToArray());
                 regionContainer.Sort();
             }
+        }
+
+        private string GetInstanceGroupName(Instance instance)
+        {
+            var stackName = instance.Tags.FirstOrDefault(x => x.Key == "aws:cloudformation:stack-name")?.Value;
+            var function = instance.Tags.FirstOrDefault(x => x.Key == "Function")?.Value ?? instance.Tags.FirstOrDefault(x => x.Key == "Name")?.Value;
+            if (stackName == null && function == null)
+            {
+                return "(no category)";
+            }
+            return function + (stackName != null ? " (" + stackName + ")" : "");
         }
 
         private void mMenFileExport_Click(object sender, EventArgs e)
