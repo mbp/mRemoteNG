@@ -536,7 +536,7 @@ namespace mRemoteNG.UI.Menu
             {
                 var describeInstancesResponse = await ec2Client.DescribeInstancesAsync();
                 var instances = describeInstancesResponse.Reservations.SelectMany(x => x.Instances)
-                    .Where(x => !string.IsNullOrEmpty(x.PublicDnsName) || !string.IsNullOrEmpty(x.PublicIpAddress))
+                    .Where(x => !string.IsNullOrEmpty(x.PublicDnsName) || !string.IsNullOrEmpty(x.PublicIpAddress) || !string.IsNullOrEmpty(x.PrivateIpAddress))
                     .Select(x => new
                     {
                         Instance = x,
@@ -566,7 +566,7 @@ namespace mRemoteNG.UI.Menu
                         {
                             string functionOrName = instance.Function ?? instance.Name;
                             var connectionInfo = new ConnectionInfo();
-                            connectionInfo.Hostname = !string.IsNullOrEmpty(instance.Instance.PublicIpAddress) ? instance.Instance.PublicIpAddress : instance.Instance.PublicDnsName;
+                            connectionInfo.Hostname = !string.IsNullOrEmpty(instance.Instance.PublicIpAddress) ? instance.Instance.PublicIpAddress : !string.IsNullOrEmpty(instance.Instance.PublicDnsName) ? instance.Instance.PublicDnsName : instance.Instance.PrivateIpAddress;
                             connectionInfo.Name = $"{functionOrName} {instance.Instance.InstanceId}";
                             connectionInfo.Description = $"{instance.Instance.State.Name}";
                             functionContainer.AddChild(connectionInfo);
