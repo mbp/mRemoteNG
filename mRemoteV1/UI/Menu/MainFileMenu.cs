@@ -576,7 +576,7 @@ namespace mRemoteNG.UI.Menu
                         foreach (var instance in instanceGroupByFunction.OrderBy(x => x.Instance.InstanceId))
                         {
                             var notRunningState = instance.Instance.State.Name != InstanceStateName.Running ? $"[{instance.Instance.State.Name}]".ToUpper() : "";
-                            string connectionInfoName = $"{instance.Instance.InstanceId} {notRunningState}";
+                            string connectionInfoName = $"{instance.Instance.InstanceId} {instance.Function} {notRunningState}";
                             addedInstanceNodes.Add(connectionInfoName);
                             if (functionContainer.Children.Any(x => x.Name == connectionInfoName))
                             {
