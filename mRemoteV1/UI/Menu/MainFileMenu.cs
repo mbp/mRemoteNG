@@ -491,7 +491,7 @@ namespace mRemoteNG.UI.Menu
             var awsNodes = rootNode.Children.Where(x => x.Description == "awsGeneratedNode").ToArray();
 
             var addedRegionContainers = new List<string>();
-            foreach (var profile in ProfileManager.ListProfiles())
+            foreach (var profile in ProfileManager.ListProfiles().OrderBy(x => x.Name))
             {
                 var credentials = ProfileManager.GetAWSCredentials(profile.Name);
 
